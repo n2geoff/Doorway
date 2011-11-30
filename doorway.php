@@ -176,7 +176,7 @@ class Doorway {
 
 	public function is_group($group_id) 
 	{
-		return $this->db->query("SELECT count(*) FROM {$this->table}.groups WHERE id = {$group_id})->fetchColumn();
+		return $this->db->query("SELECT count(*) FROM {$this->table}.groups WHERE id = {$group_id}")->fetchColumn();
 	}
 
 	/******************************************************************
