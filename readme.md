@@ -6,7 +6,7 @@ a DENY ALL as the default.
 
 # USAGE
 
-`
+<pre><code>
 //create an access object
 $access = new Doorway($pdo);
 
@@ -31,7 +31,7 @@ else
 {
     echo 'Nope, I CANNOT tell you the secret';
 }
-`
+</pre></code>
 
 # NOTES
 
