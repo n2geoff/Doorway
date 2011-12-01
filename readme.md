@@ -6,32 +6,30 @@ a DENY ALL as the default.
 
 # USAGE
 
-<pre><code>
-//create an access object
-$access = new Doorway($pdo);
+	//create an access object
+	$access = new Doorway($pdo);
 
-//create a new member
-$member_id  = $access>create_member('Geoff Doty', 'Developer');
+	//create a new member
+	$member_id  = $access>create_member('Geoff Doty', 'Developer');
 
-//create new group
-$group_id   = $access->create_group('Foo', 'Foo Group');
+	//create new group
+	$group_id   = $access->create_group('Foo', 'Foo Group');
 
-//setup membership 
-$membership = $access->add_membership($member_id, $group_id);
+	//setup membership 
+	$membership = $access->add_membership($member_id, $group_id);
 
-//add permission to group
-$permission = $access->add_group_permission($group_id, 'secret', 'read');
+	//add permission to group
+	$permission = $access->add_group_permission($group_id, 'secret', 'read');
 
-//check if authorized
-if($access->is_authorized( $member_id, 'secret', 'read'))
-{
-    echo 'I CAN tell you the secret -- DOORWAY.';
-}
-else
-{
-    echo 'Nope, I CANNOT tell you the secret';
-}
-</pre></code>
+	//check if authorized
+	if($access->is_authorized( $member_id, 'secret', 'read'))
+	{
+	    echo 'I CAN tell you the secret -- DOORWAY.';
+	}
+	else
+	{
+	    echo 'Nope, I CANNOT tell you the secret';
+	}
 
 # NOTES
 
