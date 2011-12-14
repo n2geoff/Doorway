@@ -38,8 +38,6 @@ a DENY ALL as the default.
 
 # TODO
 
-- Add add_user_permission() methdod
-- Document code
 - Add pdo construct, thinking construct($dsn, $user, $pass)
 - Evaulate removing description (barebones only?)
 - more I am sure...
