@@ -1,8 +1,15 @@
 # Doorway - A Smaller, Simpler ACL library
 
 Simplifies ACL by integrating a couple key componets into the 
-permission layer(actions and resource), and applying
+permission layer(actions and resources), and applying
 a DENY ALL as the default.  
+
+# PURPOSE
+
+Doorway aims to be just that -- a doorway into a creating a 
+Role-Based Access Control system (RBAC).  Its up to you, 
+the future developer to go forth and fork doorway to meet 
+your meet your specific business access needs.
 
 # USAGE
 
