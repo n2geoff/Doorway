@@ -4,7 +4,7 @@
  * Doorway - A Smaller, Simpler ACL library
  *
  * Simplifies ACL by integrating a couple key componets into the 
- * permission layer(actions and resource), and applying
+ * permission layer(actions and resources), and applying
  * a DENY ALL as the default.  
  *
  * Copyright (c) 2011, Geoff Doty, and contributors
@@ -44,6 +44,15 @@ class Doorway {
 
 	private $table = 'acl';
 
+	/**
+	 * Dooreway Constructor
+	 *
+	 * @param object $pdo as a PDO object instance
+	 * @param string $table database name 
+	 *
+	 * @todo change $table to prefix and retrieve table name from connection
+	 * PRAGMA database_list?
+	 */ 
 	public function __construct($pdo, $table = 'acl')
 	{
 		//set acl table name
@@ -51,16 +60,36 @@ class Doorway {
 
 		//connect to database
 		if(get_class($pdo) != 'PDO') {return FALSE;} //no, throw error
+		
+		//set private db connection
 		$this->db = $pdo;
 		
+		//return doorway object
 		return $this;	
 	}
 
 	/*******************************************************************
 	 * Member Methods
+	 *******************************************************************
+	 *
+	 * Doorways pivots on members
+	 *
+	 * memeber_id is the only id you will need to use when authroizing
+	 * access to a resource/action
+	 *
 	 *******************************************************************/
-	 public function create_member($name, $description = NULL) 
-	 {
+	 
+	/**
+	 * Create Member
+	 *
+	 * Creates Authorized Member
+	 *
+	 * @param string $name as members name
+	 * @param string $description as extra member information
+	 * @return int member_id
+	 */
+	public function create_member($name, $description = NULL) 
+	{
 	 	$sql =
 	 	"
 	 		INSERT INTO {$this->table}.members 
@@ -82,11 +111,19 @@ class Doorway {
 			return $this->db->lastInsertID();
 		}
 		return FALSE;
-	 }
+	}
 
-	 //if a member is removed all member resources need to be removed
-	 public function remove_member($member_id) 
-	 {
+	/**
+	 * Remove Member 
+	 *
+	 * Removes member and all associated entries
+	 *
+	 * @param integer $member_id
+	 *
+	 * @todo can you do prepared statements inside a transaction?
+	 */
+	public function remove_member($member_id) 
+	{
 	 	$member_id = filter_var($member_id, FILTER_SANITIZE_NUMBER_INT);
 
 		if($member_id > 0)
@@ -109,18 +146,39 @@ class Doorway {
 			catch (PDOException $e)
 			{
 				$this->db->rollBack();
-				echo $e->getMessage();
+				log_error($e->getMessage());  //log to php error log
 				return FALSE;
 			}
 	 	}
 	 	return FALSE;
 	 }
 
+	 /**
+	  * Is Member
+	  *
+	  * Checks to see if a member with id exists
+	  * 
+	  * @param integer $member_id
+	  */
 	 public function is_member($member_id) 
 	 {
 	 	return $this->db->query("SELECT count(*) FROM {$this->table}.members WHERE id = {$member_id}")->fetchColumn();
 	 }
 
+	/**
+	 * Is Authorized
+	 *
+	 * Checks if a member is authroized to access
+	 * a resource for a given action
+	 *
+	 * NOTE: Authorization propergates through the member.
+	 * If a member is authorized, the groups a member 
+	 * belongs to will return as authorized under that member. 
+	 * 
+	 * @param integer $member_id
+	 * @param string $resource premission is requested for
+	 * @param string $action requested on resource
+	 */
  	public function is_authorized($member_id, $resource, $action = 'read')
 	{
 		$sql = 
@@ -151,8 +209,21 @@ class Doorway {
 	/******************************************************************
 	 * Group Methods
 	 ******************************************************************/
-	 public function create_group($name, $description = NULL) 
-	 {
+	
+	/**
+	 * Create Group
+	 *
+	 * Groups forms permission collections
+	 *
+	 * NOTE: In lew of resources, you can use groups synomous
+	 * of resources
+	 *
+	 * @param string $name of group/resource
+	 * @param string $description meta about the group
+	 * @return integer group_id
+	 */ 
+	public function create_group($name, $description = NULL) 
+	{
 	 	$sql =
 	 	"
 	 		INSERT INTO {$this->table}.groups
@@ -177,6 +248,15 @@ class Doorway {
 	 }
 
 	//if a group is removed all resources need to be removed
+
+	/**
+	 * Remove Group
+	 * 
+	 * Removes group and all associated memberships 
+	 * and permissions
+	 * 
+	 * @param integer $group_id
+	 */
 	public function remove_group($group_id) 
 	{
 	 	//sanitize params
@@ -198,6 +278,13 @@ class Doorway {
 		 return FALSE;
 	}
 
+	 /**
+	  * Is Group
+	  *
+	  * Checks to see if a group exists
+	  * 
+	  * @param integer $group_id
+	  */
 	public function is_group($group_id) 
 	{
 		return $this->db->query("SELECT count(*) FROM {$this->table}.groups WHERE id = {$group_id}")->fetchColumn();
@@ -206,8 +293,18 @@ class Doorway {
 	/******************************************************************
 	 * Membership Methods
 	 ******************************************************************/
-	 public function add_membership($member_id, $group_id) 
-	 {
+	 
+	 /**
+	  * Add Membership
+	  *
+	  * Adds a member to a groups 
+	  * forming memberships
+	  *
+	  * @param integer $member_id
+	  * @param integer $group_id
+	  */
+	public function add_membership($member_id, $group_id) 
+	{
 	 	if($this->is_member($member_id))
 	 	{
 	 		if($this->is_group($group_id))
@@ -231,6 +328,17 @@ class Doorway {
 	/******************************************************************
 	 * Permission Methods
 	 ******************************************************************/
+	
+	/**
+	 * Group Permission
+	 *
+	 * Grants access to a group for a resource/action
+	 *
+	 * @param integer $group_id
+	 * @param string $resource
+	 * @param string $action
+	 *
+	 */
 	public function create_group_permission($group_id, $resource, $action = 'read') 
 	{
 	  	if($group_id > 0 && is_int($group_id))
@@ -259,5 +367,45 @@ class Doorway {
 	    }
 	    return FALSE;
 	}
+
+	/**
+	 * Member Permission
+	 *
+	 * Grants access to a member for a resource/action
+	 *
+	 * @param integer $member_id
+	 * @param string $resource
+	 * @param string $action
+	 *
+	 */
+	public function create_member_permission($member_id, $resource, $action = 'read') 
+	{
+	  	if($member_id > 0 && is_int($member_id))
+	  	{
+		  	$sql =
+		  	"
+		  		INSERT INTO {$this->table}.permissions
+		  		(
+		  			member_id, member_id, resource, action, created_on
+			  	)
+			  	VALUES
+			  	(
+			  		NULL, :member_id, :resource, :action, NOW()
+			  	)
+		  	";	
+
+		  	$prep = $this->db->prepare($sql);
+		  	$prep->bindValue(':member_id', strtolower($member_id), PDO::PARAM_STR);
+		  	$prep->bindValue(':resource', strtolower($resource), PDO::PARAM_STR);
+		  	$prep->bindValue(':action', strtolower($action), PDO::PARAM_STR);
+
+		  	if($prep->execute())
+		  	{
+		  		return TRUE;
+		  	}
+	    }
+	    return FALSE;
+	}
+
 }
 
