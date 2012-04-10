@@ -7,7 +7,7 @@
  * permission layer(actions and resources), and applying
  * a DENY ALL as the default.  
  *
- * Copyright (c) 2011, Geoff Doty, and contributors
+ * Copyright (c) 2012, Geoff Doty
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification, are
@@ -32,7 +32,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  * @author Geoff Doty <n2geoff@gmail.com>
- * @copyright 2011 Geoff Doty
+ * @copyright 2012 Geoff Doty
  * @license http://www.opensource.org/licenses/bsd-license.php BSD License
  *
  * ENTITIES: GROUP, MEMBER
@@ -42,24 +42,24 @@ class Doorway {
 	
 	private $db = NULL;  //PHP Data Object instance
 
-	private $table = 'acl';
+	private $translate = NULL;
 
 	/**
-	 * Dooreway Constructor
+	 * Doorway Constructor
 	 *
 	 * @param object $pdo as a PDO object instance
-	 * @param string $table database name 
+	 * @param array $translate database tie-in 
 	 *
-	 * @todo change $table to prefix and retrieve table name from connection
+	 * @todo change $translate to prefix and retrieve translate name from connection
 	 * PRAGMA database_list?
 	 */ 
-	public function __construct($pdo, $table = 'acl')
+	public function __construct($pdo, $translate = NULL)
 	{
 		//set acl table name
-		$this->table = $table;
+		$this->table = 'doorway'; //$table; //todo: finish building a tranlation layer
 
 		//connect to database
-		if(get_class($pdo) != 'PDO') {return FALSE;} //no, throw error
+		if(get_class($pdo) != 'PDO') {return FALSE;} //todo, throw exception
 		
 		//set private db connection
 		$this->db = $pdo;
@@ -106,10 +106,20 @@ class Doorway {
 		$prep->bindValue(':name', $name, PDO::PARAM_STR);
 		$prep->bindValue(':description', $description, PDO::PARAM_STR);
 
-		if($prep->execute())
+		//ensure the member doesn't already exist
+		if(!$member_id = $this->member_exists($name))
 		{
-			return $this->db->lastInsertID();
+			if($prep->execute())
+			{
+				return $this->db->lastInsertID();
+			}
 		}
+		else
+		{
+			return $member_id;
+			throw new Exception('Member Exists under name ' . $name, E_WARNING);
+		}	
+
 		return FALSE;
 	}
 
@@ -133,13 +143,13 @@ class Doorway {
 				$this->db->beginTransaction();
 
 			 	//remove all memberships
-			 	$this->db->exec("DELETE FROM {$this->table}.memberships WHERE member_id = {$member_id}");
+			 	$this->db->exec("UPDATE {$this->table}.memberships SET is_enabled = 0 WHERE member_id = {$member_id}");
 
 			 	//remove from permissions
-			 	$this->db->exec("DELETE FROM {$this->table}.permissions WHERE member_id = {$member_id}");
-
+			 	$this->db->exec("UPDATE {$this->table}.permissions SET is_enabled = 0 WHERE member_id = {$member_id}");
+ 
 			 	//remove member
-			 	$this->db->exec("DELETE FROM {$this->table}.members WHERE id = {$member_id}");
+			 	$this->db->exec("UPDATE {$this->table}.members SET is_enabled = 0 WHERE id = {$member_id}");
 				
 				$this->db->commit();
 			}
@@ -156,13 +166,26 @@ class Doorway {
 	 /**
 	  * Is Member
 	  *
-	  * Checks to see if a member with id exists
+	  * Checks to see if a member id is available
 	  * 
 	  * @param integer $member_id
 	  */
 	 public function is_member($member_id) 
 	 {
-	 	return $this->db->query("SELECT count(*) FROM {$this->table}.members WHERE id = {$member_id}")->fetchColumn();
+	 	return $this->db->query("SELECT count(*) FROM {$this->table}.members WHERE id = {$member_id} AND is_enabled = 1")->fetchColumn();
+	 }
+
+	 /**
+	  * Check if a member exists under given name
+	  *
+	  * @return integer member id
+	  */
+	 private function member_exists($name, $id = NULL)
+	 {
+	 	//nullify string case
+	 	$name = strtolower($name);
+
+	 	return $this->db->query("SELECT id FROM {$this->table}.members WHERE LOWER(name) = '{$name}'")->fetchColumn();
 	 }
 
 	/**
@@ -184,10 +207,10 @@ class Doorway {
 		$sql = 
 		"
 			SELECT *
-			FROM acl.members AS m
-			LEFT JOIN acl.memberships AS ms ON m.id = ms.member_id
-			LEFT JOIN acl.permissions AS p ON p.group_id = ms.group_id OR p.member_id = ms.member_id
-			LEFT JOIN acl.groups AS g ON g.id = ms.group_id 
+			FROM {$this->table}.members AS m
+			LEFT JOIN {$this->table}.memberships AS ms ON m.id = ms.member_id
+			LEFT JOIN {$this->table}.permissions AS p ON p.group_id = ms.group_id OR p.member_id = ms.member_id
+			LEFT JOIN {$this->table}.groups AS g ON g.id = ms.group_id 
 			WHERE
 			(	m.id = :member_id
 				AND p.resource = :resource AND p.action = :action
@@ -240,9 +263,16 @@ class Doorway {
 		$prep->bindValue(':name', $name, PDO::PARAM_STR);
 		$prep->bindValue(':description', $description, PDO::PARAM_STR);
 
-		if($prep->execute())
+		if(!$group_id = $this->group_exists($name))
 		{
-			return $this->db->lastInsertID();
+			if($prep->execute())
+			{
+				return $this->db->lastInsertID();
+			}
+		}
+		else
+		{
+			return $group_id;
 		}
 		return FALSE;
 	 }
@@ -268,10 +298,10 @@ class Doorway {
 		 	$this->db->query("DELETE FROM {$this->table}.memberships WHERE group_id = {$group_id}");
 
 		 	//remove from permissions
-		 	$this->db->query("DELETE FROM {$this->table}.permissions WHERE group_id = {$group_id}");
+		 	$this->db->query("UPDATE {$this->table}.permissions SET is_enabled = 0 WHERE group_id = {$group_id}");
 
 		 	//remove member
-		 	$this->db->query("DELETE FROM {$this->table}.groups WHERE id = {$group_id}");
+		 	$this->db->query("UPDATE {$this->table}.groups SET is_enabled = 0 WHERE id = {$group_id}");
 
 		 	return TRUE;
 		}
@@ -288,6 +318,14 @@ class Doorway {
 	public function is_group($group_id) 
 	{
 		return $this->db->query("SELECT count(*) FROM {$this->table}.groups WHERE id = {$group_id}")->fetchColumn();
+	}
+
+
+	public function group_exists($name)
+	{
+		$name = strtolower($name);
+
+		return $this->db->query("SELECT id FROM {$this->table}.groups WHERE LOWER(name) = '{$name}'")->fetchColumn();
 	}
 
 	/******************************************************************
@@ -341,7 +379,7 @@ class Doorway {
 	 */
 	public function create_group_permission($group_id, $resource, $action = 'read') 
 	{
-	  	if($group_id > 0 && is_int($group_id))
+	  	if($group_id > 0 && is_numeric($group_id))
 	  	{
 		  	$sql =
 		  	"
@@ -356,13 +394,17 @@ class Doorway {
 		  	";	
 
 		  	$prep = $this->db->prepare($sql);
-		  	$prep->bindValue(':group_id', strtolower($group_id), PDO::PARAM_STR);
+		  	$prep->bindValue(':group_id', strtolower($group_id), PDO::PARAM_INT);
 		  	$prep->bindValue(':resource', strtolower($resource), PDO::PARAM_STR);
 		  	$prep->bindValue(':action', strtolower($action), PDO::PARAM_STR);
 
-		  	if($prep->execute())
+		  	//dont create if already exists
+		  	if(!$per = $this->permission_exists(NULL, $group_id, $resource, $action))
 		  	{
-		  		return TRUE;
+			  	if($prep->execute())
+			  	{
+			  		return TRUE;
+			  	}
 		  	}
 	    }
 	    return FALSE;
@@ -395,16 +437,65 @@ class Doorway {
 		  	";	
 
 		  	$prep = $this->db->prepare($sql);
-		  	$prep->bindValue(':member_id', strtolower($member_id), PDO::PARAM_STR);
+		  	$prep->bindValue(':member_id', strtolower($member_id), PDO::PARAM_INT);
 		  	$prep->bindValue(':resource', strtolower($resource), PDO::PARAM_STR);
 		  	$prep->bindValue(':action', strtolower($action), PDO::PARAM_STR);
 
-		  	if($prep->execute())
+		  	//dont create if already exists
+			if(!$this->permission_exists($member_id, NULL, $resource, $action))
 		  	{
-		  		return TRUE;
+			  	if($prep->execute())
+			  	{
+			  		return TRUE;
+			  	}
 		  	}
 	    }
 	    return FALSE;
+	}
+
+	/**
+	 * Permission Exists
+	 *
+	 * Check if a permission exists for either member or group
+	 *
+	 * @return integer as found
+	 */
+	public function permission_exists($member_id, $group_id, $resource, $action = 'read')
+	{
+		//member or group permission check?
+		if(is_numeric($member_id))
+		{
+			$where_caluse = "WHERE member_id = {$member_id}";
+		}
+		else
+		{
+			$where_clause = "WHERE group_id = {$group_id}";
+		}
+
+		//nullify string case
+		$resource = strtolower($resource);
+
+		return $this->db->query("SELECT count(*) FROM {$this->table}.permissions {$where_clause} AND LOWER(resource) = '{$resource}' AND action = '{$action}'")->fetchColumn();
+	}
+
+	/**
+	 * Translate Table Definition
+	 *
+	 * Provides a method to leverage existing database
+	 * users and group tables for ACL tie-in
+	 *
+	 * @param array $hook as specifily formated arrays
+	 */
+	private function translate($hook)
+	{
+		$default = array
+		(
+			'table' 	=> 'acl',
+			'members' 	=> 'members',
+			'member_id' => 'member_id',
+			'groups' 	=> 'groups',
+			'group_id' 	=> 'group_id'
+		);
 	}
 
 }

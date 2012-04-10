@@ -6,6 +6,7 @@ CREATE TABLE `groups` (
   `id` int(10) NOT NULL AUTO_INCREMENT,
   `name` varchar(64) NOT NULL,
   `description` varchar(256) DEFAULT NULL,
+  `is_enabled` tinyint(1) NOT NULL DEFAULT '1',
   `created_on` timestamp NULL DEFAULT NULL,
   `modified_on` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
@@ -18,6 +19,7 @@ CREATE TABLE `members` (
   `id` int(10) NOT NULL AUTO_INCREMENT,
   `name` varchar(64) NOT NULL,
   `description` varchar(256) DEFAULT NULL,
+  `is_enabled` tinyint(1) NOT NULL DEFAULT '1',
   `created_on` timestamp NULL DEFAULT NULL,
   `modified_on` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
@@ -29,6 +31,7 @@ DROP TABLE IF EXISTS `memberships`;
 CREATE TABLE `memberships` (
   `member_id` int(10) NOT NULL,
   `group_id` int(10) NOT NULL,
+  `is_enabled` tinyint(1) NOT NULL DEFAULT '1',
   UNIQUE KEY `unique` (`member_id`,`group_id`),
   KEY `FK__groups` (`group_id`),
   CONSTRAINT `FK__groups` FOREIGN KEY (`group_id`) REFERENCES `groups` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
@@ -43,6 +46,7 @@ CREATE TABLE `permissions` (
   `group_id` int(10) DEFAULT NULL,
   `resource` varchar(64) NOT NULL,
   `action` enum('create','read','update','delete') NOT NULL,
+  `is_enabled` tinyint(1) NOT NULL DEFAULT '1',
   `created_on` timestamp NULL DEFAULT NULL,
   `modified_on` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;

@@ -1,8 +1,21 @@
+
+# NOTE OF WARNING - WIP 
+AS-IS this was a working proof-of-concept only, that failed on 
+many layers, global resource control, persistant data 
+(initially records were deleted), data growth (fixed), and
+the ability to intergrate into an existing auth system (never finished)  
+
+Combining Actions and Resources had its draw-backs, for example, 
+not being able to deny everything for a resource.
+
+As such work continues on this to make it something that could be
+useful, both standalone and intergrated into an existing auth system.
+
 # Doorway - A Smaller, Simpler ACL library
 
 Simplifies ACL by integrating a couple key componets into the 
 permission layer(actions and resources), and applying
-a DENY ALL as the default.  
+a DENY ALL as the default. 
 
 # PURPOSE
 
@@ -26,7 +39,7 @@ your meet your specific business access needs.
 	$membership = $access->add_membership($member_id, $group_id);
 
 	//add permission to group
-	$permission = $access->add_group_permission($group_id, 'secret', 'read');
+	$permission = $access->create_group_permission($group_id, 'secret', 'read');
 
 	//check if authorized
 	if($access->is_authorized( $member_id, 'secret', 'read'))
@@ -40,8 +53,8 @@ your meet your specific business access needs.
 
 # NOTES
 
-- DENY by default, if it doesn't exist, you dont have access
-- Tokens: resource, action are ALWAYS evaluated as lowercase
+- DENY by default, if it doesn't exist OR not enabled, you don't have access
+- Tokens: resource & action are ALWAYS evaluated as lowercase (case-insensitive)
 
 # TODO
 
